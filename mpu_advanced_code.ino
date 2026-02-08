@@ -31,7 +31,7 @@ Alternative: 0x69 (if AD0 pin is HIGH)
 */
 
 #include <Wire.h>
-#include <Math.h>
+//#include <Math.h>
 #define PI 3.14159265
 int i; //used for gyro calibration loop
 float ax,ay,az,gx,gy,gz;
@@ -50,9 +50,9 @@ void setup() {
 
   Serial.println("Gyro calibration starting.");
   gyroCalibration();
-  Serial.println("Gyro calibration ended");
+  Serial.println("Gyro calibration ended.");
   prevtime = millis();
-  Serial.println("nowTime(ms)\tdt(s)\tgx(ω)\tgy(ω)\tgz(ω)\tangleX\tangleY\tangleZ");
+  Serial.println("nowTime(ms)\tdt(s)\tangleX\tangleY\tangleZ");
   Serial.println("------------------------------------------------------------------------");
 }
 
@@ -62,21 +62,22 @@ Wire.write(0x3B); //this is the starting register from where the i2c begins to r
 Wire.endTransmission(false); //grab the attention to the mpu only. i.e do not stop the communication with the mpu  
 Wire.requestFrom(0x68,14); 
 //the data for acceleration is of 16 bit and the gyro is for 16 bit but the register is of 8 bit so we read twice
-ax = (Wire.read() << 8 | Wire.read())/16384.0;
-ay = (Wire.read() << 8 | Wire.read())/16384.0;
-az = (Wire.read() << 8 | Wire.read())/16384.0;
+ax = readHighLow()/16384.0;
+ay = readHighLow()/16384.0;
+az = readHighLow()/16384.0;
 
 //we ignore the temp for now //this just reads past the registers and does nothing
 Wire.read();
 Wire.read();
 
-gx =  ((Wire.read() << 8 | Wire.read())/131.0)-offsetx; //we subtract the offset so that we get 0 degree when the bot is still
-gy =  ((Wire.read() << 8 | Wire.read())/131.0)-offsety;
-gz =  ((Wire.read() << 8 | Wire.read())/131.0)-offsetz;
+//gyro measures angular velocity and it does not matter if it is divided by 131 it is still angular velocity 
+gx =  (readHighLow()/131.0)-offsetx; //we subtract the offset so that we get 0 degree when the bot is still(not moving)
+gy =  (readHighLow()/131.0)-offsety;
+gz =  (readHighLow()/131.0)-offsetz;
 
 
 //GET THE ANGLES FROM ACCELEROMETER DATA
-accAngleX = atan2(ay/az) * (180/PI);
+accAngleX = atan2(ay,az) * (180/PI);
 accAngleY = atan2(-ax,sqrt(ay*ay+az*az)) * (180/PI);
 //
 //get the dt
@@ -87,15 +88,12 @@ prevtime = nowtime;
 //so we convert them into angles using (degree = angular velocity * time taken) here, gx * dt = angle
 //+ ADDITION OF THE COMPLEMENTARY FILTER SO THAT THE TRUE BIASNESS FROM THE DRIFT OF GYRO BECOMES NEGLIGIBLE
 angleX = 0.98*(angleX + (gx * dt)) + 0.02 * accAngleX; // ∫gx dt [finalPosition = initialPosition + Change in position ]
-angleY = 0.98*(angleX + (gx * dt)) + 0.02 * accAngleX;
-angleZ = 0.98*(angleX + (gx * dt)) + 0.02 * accAngleX;
+angleY = 0.98*(angleY + (gy * dt)) + 0.02 * accAngleY;
+angleZ = (angleZ + (gz * dt));
 
 //tabulated output
   Serial.print(nowtime); Serial.print("\t");
   Serial.print(dt, 4); Serial.print("\t");
-  Serial.print(gx, 2); Serial.print("\t");
-  Serial.print(gy, 2); Serial.print("\t");
-  Serial.print(gz, 2); Serial.print("\t");
   Serial.print(angleX, 2); Serial.print("°\t");
   Serial.print(angleY, 2); Serial.print("°\t");
   Serial.print(angleZ, 2); Serial.print("°\n");
@@ -111,9 +109,9 @@ void gyroCalibration(){
     Wire.endTransmission(false);
     Wire.requestFrom(0x68,6); //hey "0x68" send me 6 bytes starting from where your pointer is "0x43" 
 
-    uncalibratedx = (Wire.read() << 8 | Wire.read())/131.0;
-    uncalibratedy = (Wire.read() << 8 | Wire.read())/131.0;
-    uncalibratedz = (Wire.read() << 8 | Wire.read())/131.0;
+    uncalibratedx = readHighLow()/131.0;
+    uncalibratedy = readHighLow()/131.0;
+    uncalibratedz = readHighLow()/131.0;
 
     //we are summing up the biases produced by the hardware limitation of the gyro 
     //suppose the gyro shows 0.88 degrees when still which is a bias so we sum up biases up to 500 and then subtract the offsets
@@ -127,4 +125,11 @@ void gyroCalibration(){
   offsetx = sumx/500; //get the average bias of the x values which is then subtracted later
   offsety = sumy/500; //get the average bias of the x values which is then subtracted later
   offsetz = sumz/500; //get the average bias of the x values which is then subtracted later
+}
+
+int16_t readHighLow()
+{
+  uint8_t high = Wire.read();
+  uint8_t low = Wire.read();
+  return (int16_t)(high<<8|low); 
 }
