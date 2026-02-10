@@ -31,9 +31,9 @@ Alternative: 0x69 (if AD0 pin is HIGH)
 */
 
 #include <Wire.h>
-//#include <Math.h>
+#include <Math.h>
 #define PI 3.14159265
-int i; //used for gyro calibration loop
+int i,sampling=2000; //used for gyro calibration loop
 float ax,ay,az,gx,gy,gz;
 float sumx=0,sumy=0,sumz=0,uncalibratedx,uncalibratedy,uncalibratedz,offsetx,offsety,offsetz; //used in gyroCalibration() function
 float angleX=0, angleY=0, angleZ=0;
@@ -51,7 +51,7 @@ void setup() {
   Serial.println("Gyro calibration starting.");
   gyroCalibration();
   Serial.println("Gyro calibration ended.");
-  prevtime = millis();
+  prevtime = micros();
   Serial.println("nowTime(ms)\tdt(s)\tangleX\tangleY\tangleZ");
   Serial.println("------------------------------------------------------------------------");
 }
@@ -70,10 +70,15 @@ az = readHighLow()/16384.0;
 Wire.read();
 Wire.read();
 
-//gyro measures angular velocity and it does not matter if it is divided by 131 it is still angular velocity 
+//gyro measures angular velocity and it does not matter if it is divided by 131 or not, it is still angular velocity 
 gx =  (readHighLow()/131.0)-offsetx; //we subtract the offset so that we get 0 degree when the bot is still(not moving)
 gy =  (readHighLow()/131.0)-offsety;
 gz =  (readHighLow()/131.0)-offsetz;
+
+if (abs(gz) < 0.15) //here 0.15 is degree per second and we are creating a dead zone. 
+{
+  gz = 0; //if the robot (after calibration) is still wobbling around 0.15 degrees per second we assume it's not moving
+}
 
 
 //GET THE ANGLES FROM ACCELEROMETER DATA
@@ -81,8 +86,8 @@ accAngleX = atan2(ay,az) * (180/PI);
 accAngleY = atan2(-ax,sqrt(ay*ay+az*az)) * (180/PI);
 //
 //get the dt
-nowtime = millis();
-dt = (nowtime - prevtime)/1000; // change in time frame in seconds
+nowtime = micros();
+dt = (nowtime - prevtime)/1000000.0; // change in time frame in seconds
 prevtime = nowtime;
 //the upper values are angular velocity i.e degrees per second (gx,gy,gz)
 //so we convert them into angles using (degree = angular velocity * time taken) here, gx * dt = angle
@@ -102,19 +107,19 @@ delay(5);
 }
 
 void gyroCalibration(){
-  for (i=1;i<=500;i++)
+  for (i=1;i<=sampling;i++)
   {
     Wire.beginTransmission(0x68);
     Wire.write(0x43); //the first register for gyro //mpu6050 revision 4.2 page 31
     Wire.endTransmission(false);
     Wire.requestFrom(0x68,6); //hey "0x68" send me 6 bytes starting from where your pointer is "0x43" 
 
-    uncalibratedx = readHighLow()/131.0;
-    uncalibratedy = readHighLow()/131.0;
-    uncalibratedz = readHighLow()/131.0;
+    uncalibratedx = readHighLow(); //this is unitless btw
+    uncalibratedy = readHighLow();
+    uncalibratedz = readHighLow();
 
     //we are summing up the biases produced by the hardware limitation of the gyro 
-    //suppose the gyro shows 0.88 degrees when still which is a bias so we sum up biases up to 500 and then subtract the offsets
+    //suppose the gyro shows 262 "unitless" (2 degree per second) when unmoved, which is a bias so we sum up biases up to 500 and then subtract the offsets
 
     sumx = (sumx + uncalibratedx); //find the sum of the total misleading x values when in still i.e when the robot does not move 
     sumy = (sumy + uncalibratedy); //find the sum of the total misleading y values when in still i.e when the robot does not move
@@ -122,9 +127,9 @@ void gyroCalibration(){
   
     delay(2);
   }
-  offsetx = sumx/500; //get the average bias of the x values which is then subtracted later
-  offsety = sumy/500; //get the average bias of the x values which is then subtracted later
-  offsetz = sumz/500; //get the average bias of the x values which is then subtracted later
+  offsetx = (sumx/sampling)/131.0; //get the average bias of the x values which is then subtracted later
+  offsety = (sumy/sampling)/131.0; //get the average bias of the x values which is then subtracted later
+  offsetz = (sumz/sampling)/131.0; //get the average bias of the x values which is then subtracted later
 }
 
 int16_t readHighLow()
