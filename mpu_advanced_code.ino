@@ -42,10 +42,10 @@ float prevtime, nowtime, dt;
 void setup() {
   Serial.begin(9600);
   Wire.begin(); //Sets up the SDA (data) and SCL (clock) pins
-  Wire.beginTransmission(0x68); //transmits to mpu
+  Wire.beginTransmission(0x68); //communication between the mpu has started 
   Wire.write(0x6B); //points to the sleep register and when the next write function is called the bits are written into this register
-  Wire.write(00000000); //here the 6th bit is 0 that means the sleep mode is tunred to 0
-  Wire.endTransmission(true); //You've told the MPU what to do, now you're done talking.
+  Wire.write(0b00000000); //here the 6th bit is 0 that means the sleep mode is turned to 0 i.e the power has reached the mpu
+  Wire.endTransmission(true); //This tells the mpu to hang up and stop the communication.
   Serial.println("MPU woke up.");
 
   Serial.println("Gyro calibration starting.");
@@ -58,10 +58,11 @@ void setup() {
 
 void loop() {
 Wire.beginTransmission(0x68); // so now wire is specifically selected towards the mpu address so now Everything after (Wire.) will be specifically redirected to the sensor
-Wire.write(0x3B); //this is the starting register from where the i2c begins to read the information we get mpu
+Wire.write(0x3B); // Points to the first register of accelerometer data (ACCEL_XOUT_H)
 Wire.endTransmission(false); //grab the attention to the mpu only. i.e do not stop the communication with the mpu  
 Wire.requestFrom(0x68,14); 
-//the data for acceleration is of 16 bit and the gyro is for 16 bit but the register is of 8 bit so we read twice
+
+  
 ax = readHighLow()/16384.0;
 ay = readHighLow()/16384.0;
 az = readHighLow()/16384.0;
