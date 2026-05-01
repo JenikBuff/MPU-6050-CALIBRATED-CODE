@@ -62,8 +62,8 @@ Wire.write(0x3B); // Points to the first register of accelerometer data (ACCEL_X
 Wire.endTransmission(false); //grab the attention to the mpu only. i.e do not stop the communication with the mpu  
 Wire.requestFrom(0x68,14); 
 
-  
-ax = readHighLow()/16384.0;
+  //the unit for this is 'g' and the sensitivity is ±2g
+ax = readHighLow()/16384.0; 
 ay = readHighLow()/16384.0;
 az = readHighLow()/16384.0;
 
