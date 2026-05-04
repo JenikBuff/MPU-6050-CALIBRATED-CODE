@@ -39,6 +39,7 @@ float sumx=0,sumy=0,sumz=0,uncalibratedx,uncalibratedy,uncalibratedz,offsetx,off
 float angleX=0, angleY=0, angleZ=0;
 float accAngleX=0, accAngleY=0;
 float prevtime, nowtime, dt;
+unsigned long initialTime;
 void setup() {
   Serial.begin(9600);
   Wire.begin(); //Sets up the SDA (data) and SCL (clock) pins
@@ -54,6 +55,9 @@ void setup() {
   prevtime = micros();
   Serial.println("nowTime(ms)\tdt(s)\tangleX\tangleY\tangleZ");
   Serial.println("------------------------------------------------------------------------");
+
+
+  initialTime=millis();
 }
 
 void loop() {
@@ -97,14 +101,14 @@ angleX = 0.98*(angleX + (gx * dt)) + 0.02 * accAngleX; // ∫gx dt [finalPositio
 angleY = 0.98*(angleY + (gy * dt)) + 0.02 * accAngleY;
 angleZ = (angleZ + (gz * dt));
 
+if (millis()-initialTime)
 //tabulated output
   Serial.print(nowtime); Serial.print("\t");
   Serial.print(dt, 4); Serial.print("\t");
   Serial.print(angleX, 2); Serial.print("°\t");
   Serial.print(angleY, 2); Serial.print("°\t");
   Serial.print(angleZ, 2); Serial.print("°\n");
-//
-delay(5);
+  initialTime = millis();
 }
 
 void gyroCalibration(){
