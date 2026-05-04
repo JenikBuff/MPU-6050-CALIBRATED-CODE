@@ -76,7 +76,7 @@ gx =  (readHighLow()/131.0)-offsetx; //we subtract the offset so that we get 0 d
 gy =  (readHighLow()/131.0)-offsety;
 gz =  (readHighLow()/131.0)-offsetz;
 
-if (abs(gz) < 0.15) //here 0.15 is degree per second and we are creating a dead zone. 
+if (abs(gz) < 0.5)
 {
   gz = 0; //if the robot (after calibration) is still wobbling around 0.15 degrees per second we assume it's not moving
 }
